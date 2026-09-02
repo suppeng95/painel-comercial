@@ -1,0 +1,27 @@
+# Este repositorio contem SOMENTE o que vai ao ar. Nada de script, log ou chave.
+
+# Chave de conta de servico do Firebase: e uma senha de administrador.
+# Se vazar, quem tiver o arquivo escreve e le o banco inteiro.
+chave-firebase.json
+*firebase*adminsdk*.json
+serviceAccount*.json
+
+# Segredos em geral
+.env
+.env.*
+*.pem
+*.key
+token.txt
+
+# Ruido local
+*.log
+*.bak
+*.tmp
+__pycache__/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# A planilha nunca entra aqui
+*.xlsm
+*.xlsx
