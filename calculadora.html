@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador de parcelamento</title>
+<style>
+  :root{
+    --fundo:#F1F5F6; --superficie:#FFFFFF; --tinta:#0F2C35; --grafite:#67818A;
+    --linha:#DFE8EA; --indigo:#0E5A6E; --ciano:#3E9DB5; --verde:#7FB123;
+    --laranja:#D98C1F; --vermelho:#CB4436; --lima:#95C11F; --petroleo:#04404F;
+    --r:14px; --sombra:0 1px 2px rgba(4,64,79,.06), 0 12px 28px -18px rgba(4,64,79,.45);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--fundo);color:var(--tinta);
+    font-family:"Segoe UI",Roboto,-apple-system,"Helvetica Neue",Arial,sans-serif;
+    font-size:14px;line-height:1.5;font-variant-numeric:tabular-nums}
+  .wrap{max-width:1120px;margin:0 auto;padding:26px 22px 60px}
+  h1{font-size:22px;margin:0 0 2px}
+  .sub{color:var(--grafite);margin:0 0 22px;font-size:14px}
+  .grade{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+  .card{background:var(--superficie);border:1px solid var(--linha);border-radius:var(--r);
+    box-shadow:var(--sombra);padding:20px}
+  .card h2{font-size:15px;margin:0 0 16px;display:flex;justify-content:space-between;align-items:center}
+  .campo{display:block;margin-bottom:14px}
+  .campo>span{display:block;font-size:12px;color:var(--grafite);margin-bottom:5px}
+  input[type=text],input[type=date],input[type=number]{width:100%;padding:9px 11px;
+    border:1px solid var(--linha);border-radius:8px;font:inherit;color:var(--tinta);background:#fff}
+  input:focus{outline:2px solid var(--ciano);outline-offset:1px;border-color:var(--ciano)}
+  .par{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .seg{display:inline-flex;border:1px solid var(--linha);border-radius:999px;padding:3px;gap:2px;background:#fff}
+  .seg button{appearance:none;border:0;background:none;border-radius:999px;padding:6px 14px;
+    font:inherit;font-size:13px;color:var(--grafite);cursor:pointer;white-space:nowrap}
+  .seg button.on{background:var(--petroleo);color:#fff;font-weight:600}
+  .rot{font-size:12px;color:var(--grafite);margin:0 0 8px}
+  hr{border:0;border-top:1px solid var(--linha);margin:16px 0}
+  .linha-prazo{display:grid;grid-template-columns:70px 1fr 30px;gap:10px;align-items:center;margin-bottom:9px}
+  .linha-prazo .lp-rot{font-size:12px;color:var(--grafite)}
+  .linha-prazo .x{appearance:none;border:0;background:none;color:var(--grafite);cursor:pointer;font-size:16px}
+  .linha-prazo .x:hover{color:var(--vermelho)}
+  .add{appearance:none;border:0;background:none;color:var(--indigo);font:inherit;font-size:13px;
+    font-weight:600;cursor:pointer;padding:0}
+  .btn-calc{appearance:none;border:0;background:var(--petroleo);color:#fff;font:inherit;
+    font-weight:650;font-size:15px;padding:13px 26px;border-radius:10px;cursor:pointer;margin:22px 0}
+  .btn-calc:hover{filter:brightness(1.12)}
+  .resultado{margin-top:6px}
+  .selo{font-size:12px;font-weight:600;padding:5px 12px;border-radius:999px}
+  .selo.ok{background:#EAF4D8;color:#4C6B12}
+  .selo.nao{background:#FBE4E1;color:#9A2E23}
+  .selo.prov{background:#FBEFD8;color:#8A5810}
+  .acoes{display:flex;gap:8px}
+  .btn-exp{appearance:none;border:1px solid var(--linha);background:#fff;color:var(--tinta);
+    font:inherit;font-size:13px;padding:6px 12px;border-radius:8px;cursor:pointer}
+  .btn-exp:hover{background:var(--fundo)}
+  table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13.5px}
+  th,td{text-align:right;padding:11px 10px;border-bottom:1px solid var(--linha)}
+  th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+  th{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--grafite);font-weight:600}
+  tr.entrada td{color:var(--indigo)}
+  .totais{display:flex;gap:26px;flex-wrap:wrap;margin-top:16px;color:var(--grafite);font-size:13.5px}
+  .totais b{color:var(--tinta)}
+  .checks{margin-top:12px;font-size:12.5px;color:var(--grafite)}
+  .checks div{margin:3px 0}
+  .checks .c-ok::before{content:"\2713 ";color:var(--verde)}
+  .checks .c-nao::before{content:"\2717 ";color:var(--vermelho)}
+  .aviso{background:#FBEFD8;border:1px solid #F0D9A8;color:#7A4E0B;border-radius:10px;
+    padding:11px 14px;font-size:12.5px;margin-top:16px}
+  @media(max-width:820px){.grade{grid-template-columns:1fr}}
+  @media print{.card:first-of-type,.grade>.card,.btn-calc,.acoes{display:none}.resultado{margin:0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="tituloCalc">Simulador de parcelamento</h1>
+  <p class="sub" id="subCalc">Parcela fixa com juros pro-rata por dias e regras minimas.</p>
+
+  <div class="grade">
+    <!-- REGRAS -->
+    <div class="card">
+      <h2>Regras de negocio</h2>
+      <div class="par">
+        <label class="campo"><span>Data de referencia</span>
+          <input type="date" id="dataRef"></label>
+        <label class="campo"><span>Valor total (R$)</span>
+          <input type="text" id="valorTotal" inputmode="decimal" placeholder="0,00"></label>
+      </div>
+      <div class="par">
+        <label class="campo"><span>Juros (% a.m.)</span>
+          <input type="text" id="juros" inputmode="decimal" placeholder="0,0"></label>
+        <label class="campo"><span>Parcela minima (R$)</span>
+          <input type="text" id="parcelaMin" inputmode="decimal" placeholder="0,00"></label>
+      </div>
+
+      <p class="rot">Prazo limite ultima parcela</p>
+      <div class="par" style="grid-template-columns:auto 1fr;align-items:start">
+        <div class="seg" id="segLimite">
+          <button data-v="dias" class="on">Dias</button>
+          <button data-v="meses">Meses</button>
+          <button data-v="data">Data</button>
+        </div>
+        <div id="limiteCampo"></div>
+      </div>
+
+      <hr>
+      <p class="rot">Modo de entrada</p>
+      <div class="seg" id="segEntrada">
+        <button data-v="fixa" class="on">Entrada fixa</button>
+        <button data-v="minima">Entrada minima</button>
+        <button data-v="sem">Sem entrada</button>
+      </div>
+      <div class="par" style="margin-top:14px" id="entradaCampos">
+        <label class="campo"><span id="rotEntrada">Entrada (R$)</span>
+          <input type="text" id="entradaValor" inputmode="decimal" placeholder="0,00"></label>
+        <label class="campo"><span>Prazo limite entrada (dias)</span>
+          <input type="number" id="entradaPrazo" placeholder="0"></label>
+      </div>
+    </div>
+
+    <!-- PRAZOS -->
+    <div class="card">
+      <h2>Prazos desejados <button class="add" id="addLinha">+ adicionar</button></h2>
+      <div class="seg" id="segPrazo">
+        <button data-v="dias">Dias</button>
+        <button data-v="meses">Meses</button>
+        <button data-v="datas" class="on">Datas</button>
+      </div>
+      <p class="rot" style="margin-top:12px">A primeira linha e sempre a entrada.</p>
+      <div id="linhasPrazo"></div>
+    </div>
+  </div>
+
+  <button class="btn-calc" id="btnCalc">Calcular simulacao</button>
+
+  <div class="card resultado" id="resultado" style="display:none">
+    <h2>Resultado da simulacao
+      <span class="acoes">
+        <span id="selo"></span>
+        <button class="btn-exp" id="expExcel">Exportar Excel</button>
+        <button class="btn-exp" id="expPdf">Exportar PDF</button>
+      </span>
+    </h2>
+    <div style="overflow-x:auto">
+      <table id="tabela">
+        <thead><tr>
+          <th>Prazo</th><th>Vencimento</th><th>Valor da parcela</th><th>Saldo antes</th>
+          <th>Juros</th><th>Amortizacao</th><th>Saldo depois</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="totais" id="totais"></div>
+    <div class="checks" id="checks"></div>
+    <div class="aviso">Regra de aprovacao e tratamento de parcela abaixo da minima ainda serao definidos.
+      Por enquanto o selo e provisorio e mostra apenas as verificacoes obvias.</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+// ---------- estado dos seletores ----------
+let modoLimite = "dias", modoEntrada = "fixa", modoPrazo = "datas";
+
+function ligarSeg(idSeg, aoTrocar){
+  const seg = $(idSeg);
+  seg.addEventListener("click", e => {
+    const b = e.target.closest("button"); if(!b) return;
+    [...seg.children].forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    aoTrocar(b.dataset.v);
+  });
+}
+
+// ---------- numeros pt-BR ----------
+function numBR(s){
+  if(typeof s === "number") return s;
+  if(!s) return 0;
+  s = String(s).trim().replace(/\s/g,"").replace(/r\$/gi,"");
+  if(!s) return 0;
+  const temV = s.includes(","), temP = s.includes(".");
+  if(temV && temP){
+    // ambos presentes: o ultimo separador e o decimal
+    if(s.lastIndexOf(",") > s.lastIndexOf(".")) s = s.replace(/\./g,"").replace(",",".");  // 57.000,00
+    else s = s.replace(/,/g,"");                                                            // 57,000.00
+  } else if(temV){
+    s = s.replace(",",".");                    // so virgula = decimal (2,5)
+  } else if(temP){
+    const partes = s.split(".");
+    if(partes.length > 2) s = partes.join("");          // 1.234.567 = milhares
+    else if(partes[1] && partes[1].length === 3) s = partes.join(""); // 57.000 = milhar
+    // senao mantem o ponto como decimal (2.5, 2.55)
+  }
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+const brl = n => n.toLocaleString("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2,maximumFractionDigits:2});
+const r2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
+
+// ---------- datas ----------
+function isoParaData(iso){ const [y,m,d] = iso.split("-").map(Number); return new Date(y,m-1,d); }
+function dataParaBR(dt){ return dt.toLocaleDateString("pt-BR"); }
+function addDias(dt,n){ const x = new Date(dt); x.setDate(x.getDate()+n); return x; }
+function addMeses(dt,n){ const x = new Date(dt); x.setMonth(x.getMonth()+n); return x; }
+function diffDias(a,b){ return Math.round((b - a)/86400000); }
+
+// ---------- campo de limite (dias/meses/data) ----------
+function renderLimite(){
+  const el = $("limiteCampo");
+  if(modoLimite === "data") el.innerHTML = '<input type="date" id="limiteVal">';
+  else el.innerHTML = '<input type="number" id="limiteVal" placeholder="'+(modoLimite==="dias"?"dias":"meses")+'">';
+}
+
+// ---------- linhas de prazo ----------
+let linhas = [];  // cada item: {valor: string}
+function rotuloLinha(i){
+  if(i === 0 && modoEntrada !== "sem") return "Entrada";
+  const n = modoEntrada === "sem" ? i+1 : i;
+  return "Parcela " + n;
+}
+function renderLinhas(){
+  const cont = $("linhasPrazo");
+  cont.innerHTML = "";
+  linhas.forEach((ln, i) => {
+    const div = document.createElement("div");
+    div.className = "linha-prazo";
+    let campo;
+    if(modoPrazo === "datas") campo = '<input type="date" data-i="'+i+'">';
+    else campo = '<input type="number" data-i="'+i+'" placeholder="'+(modoPrazo==="dias"?"dias":"meses")+'">';
+    div.innerHTML = '<span class="lp-rot">'+rotuloLinha(i)+'</span>' + campo +
+      (linhas.length > 1 ? '<button class="x" data-del="'+i+'">×</button>' : '<span></span>');
+    cont.appendChild(div);
+    const inp = div.querySelector("input");
+    inp.value = ln.valor || "";
+    inp.addEventListener("input", () => { linhas[i].valor = inp.value; });
+  });
+  cont.querySelectorAll("[data-del]").forEach(b =>
+    b.addEventListener("click", () => { linhas.splice(+b.dataset.del,1); renderLinhas(); }));
+}
+
+// ---------- montar datas de pagamento a partir das linhas ----------
+function datasPagamento(dataRef){
+  return linhas.map(ln => {
+    const v = ln.valor;
+    if(!v) return null;
+    if(modoPrazo === "datas") return isoParaData(v);
+    if(modoPrazo === "dias")  return addDias(dataRef, parseInt(v,10)||0);
+    if(modoPrazo === "meses") return addMeses(dataRef, parseInt(v,10)||0);
+  });
+}
+
+// ---------- o calculo ----------
+function calcular(){
+  const dataRefIso = $("dataRef").value;
+  if(!dataRefIso){ alert("Informe a data de referencia."); return; }
+  const dataRef = isoParaData(dataRefIso);
+  const total = numBR($("valorTotal").value);
+  const taxa = numBR($("juros").value) / 100;      // ao mes
+  const parcelaMin = numBR($("parcelaMin").value);
+  const entradaValor = modoEntrada === "sem" ? 0 : numBR($("entradaValor").value);
+
+  const datas = datasPagamento(dataRef);
+  if(datas.some(d => !d)){ alert("Preencha todos os prazos."); return; }
+
+  // separa entrada (1a linha, se houver) das parcelas
+  const temEntrada = modoEntrada !== "sem";
+  const dataEntrada = temEntrada ? datas[0] : dataRef;
+  const datasParc = temEntrada ? datas.slice(1) : datas;
+  if(datasParc.length === 0){ alert("Adicione ao menos uma parcela."); return; }
+
+  // saldo apos a entrada
+  let saldo = r2(total - (temEntrada ? entradaValor : 0));
+
+  // taxa de cada periodo = taxa mensal * (dias do periodo / 30)
+  // dias contados entre pagamentos consecutivos; o 1o parte da data da entrada
+  const taxas = [];
+  let anterior = dataEntrada;
+  datasParc.forEach(d => {
+    const dias = diffDias(anterior, d);
+    taxas.push(taxa * (dias/30));
+    anterior = d;
+  });
+
+  // parcela fixa P: saldo = P * soma(1 / produto(1+taxa_k)  ate j)
+  let soma = 0, prod = 1;
+  taxas.forEach(t => { prod *= (1+t); soma += 1/prod; });
+  const P = r2(saldo / soma);
+
+  // monta o cronograma
+  const linhasRes = [];
+  if(temEntrada){
+    linhasRes.push({
+      prazo: "Entrada", venc: dataEntrada, parcela: r2(entradaValor),
+      antes: r2(total), juros: 0, amort: r2(entradaValor), depois: saldo
+    });
+  }
+  let saldoAtual = saldo;
+  datasParc.forEach((d, k) => {
+    const juros = r2(saldoAtual * taxas[k]);
+    let amort, parcela;
+    if(k === datasParc.length - 1){        // ultima: zera o saldo
+      amort = r2(saldoAtual);
+      parcela = r2(juros + amort);
+    } else {
+      parcela = P;
+      amort = r2(P - juros);
+    }
+    const depois = r2(saldoAtual - amort);
+    linhasRes.push({
+      prazo: diffDias(dataRef, d) + " dias", venc: d,
+      parcela, antes: saldoAtual, juros, amort, depois
+    });
+    saldoAtual = depois;
+  });
+
+  render(linhasRes, parcelaMin, dataRef);
+}
+
+// ---------- render do resultado ----------
+let ultimo = null;
+function render(linhasRes, parcelaMin, dataRef){
+  ultimo = linhasRes;
+  const tb = $("tabela").querySelector("tbody");
+  tb.innerHTML = "";
+  linhasRes.forEach(l => {
+    const tr = document.createElement("tr");
+    if(l.prazo === "Entrada") tr.className = "entrada";
+    tr.innerHTML = "<td>"+l.prazo+"</td><td>"+dataParaBR(l.venc)+"</td><td>"+brl(l.parcela)+
+      "</td><td>"+brl(l.antes)+"</td><td>"+brl(l.juros)+"</td><td>"+brl(l.amort)+
+      "</td><td>"+brl(l.depois)+"</td>";
+    tb.appendChild(tr);
+  });
+
+  const parcelas = linhasRes.filter(l => l.prazo !== "Entrada");
+  const totJuros = r2(parcelas.reduce((s,l)=>s+l.juros,0));
+  const totAmort = r2(linhasRes.reduce((s,l)=>s+l.amort,0));
+  const totPago  = r2(linhasRes.reduce((s,l)=>s+l.parcela,0));
+  $("totais").innerHTML =
+    "Total de juros: <b>"+brl(totJuros)+"</b>"+
+    "&nbsp;&nbsp;&nbsp; Total amortizado: <b>"+brl(totAmort)+"</b>"+
+    "&nbsp;&nbsp;&nbsp; Valor parcelado (total pago): <b>"+brl(totPago)+"</b>";
+
+  // verificacoes provisorias
+  const menorParc = Math.min(...parcelas.map(l=>l.parcela));
+  const checaMin = parcelaMin <= 0 || menorParc >= parcelaMin;
+  const chk = [];
+  if(parcelaMin > 0)
+    chk.push('<div class="'+(checaMin?"c-ok":"c-nao")+'">Todas as parcelas &ge; minima ('+brl(parcelaMin)+")</div>");
+  $("checks").innerHTML = chk.join("");
+
+  const selo = $("selo");
+  if(parcelaMin > 0){
+    selo.className = "selo " + (checaMin ? "ok" : "nao");
+    selo.textContent = checaMin ? "Aprovada" : "Reprovada";
+  } else {
+    selo.className = "selo prov";
+    selo.textContent = "Provisoria";
+  }
+  $("resultado").style.display = "";
+  $("resultado").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+// ---------- exportacoes ----------
+function exportarExcel(){
+  if(!ultimo) return;
+  let csv = "Prazo;Vencimento;Valor da parcela;Saldo antes;Juros;Amortizacao;Saldo depois\n";
+  ultimo.forEach(l => {
+    csv += [l.prazo, dataParaBR(l.venc), l.parcela, l.antes, l.juros, l.amort, l.depois]
+      .map(x => typeof x === "number" ? String(x).replace(".",",") : x).join(";") + "\n";
+  });
+  const blob = new Blob(["﻿"+csv], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "simulacao.csv";
+  a.click();
+}
+function exportarPdf(){ window.print(); }
+
+// ---------- embutida no painel? esconde o proprio titulo (o painel ja mostra) ----------
+if(window.self !== window.top){
+  const t = $("tituloCalc"), su = $("subCalc");
+  if(t) t.style.display = "none";
+  if(su) su.style.display = "none";
+  document.querySelector(".wrap").style.padding = "4px 2px 40px";
+}
+
+// ---------- inicializacao ----------
+ligarSeg("segLimite", v => { modoLimite = v; renderLimite(); });
+ligarSeg("segEntrada", v => {
+  modoEntrada = v;
+  $("entradaCampos").style.display = v === "sem" ? "none" : "";
+  $("rotEntrada").textContent = v === "minima" ? "Entrada minima (R$)" : "Entrada (R$)";
+  renderLinhas();
+});
+ligarSeg("segPrazo", v => { modoPrazo = v; renderLinhas(); });
+
+$("addLinha").addEventListener("click", () => { linhas.push({valor:""}); renderLinhas(); });
+$("btnCalc").addEventListener("click", calcular);
+$("expExcel").addEventListener("click", exportarExcel);
+$("expPdf").addEventListener("click", exportarPdf);
+
+// valores iniciais = exemplo do print, para conferencia rapida
+(function seed(){
+  const hoje = new Date();
+  $("dataRef").value = hoje.toISOString().slice(0,10);
+  linhas = [{valor:""},{valor:""},{valor:""}];
+  renderLimite();
+  renderLinhas();
+})();
+</script>
+</body>
+</html>
