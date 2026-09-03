@@ -21,19 +21,18 @@ público expõe a estrutura da aplicação sem necessidade.
 
 **2. Confira se o `index.html` está vazio de dados.** Com o Firestore ligado
 (`USAR_FIRESTORE = True` no gerador), o painel vai sem a carteira dentro e busca os
-dados do banco depois do login. Para verificar, procure um nome de cliente no arquivo:
+dados do banco depois do login. Para verificar, procure a estrutura de dados no arquivo:
 
 ```bash
-grep -c "HIGHLINE" index.html
+grep -c "\"regs\":\[\[" index.html
 ```
 
 O resultado **precisa ser 0**. Se vier 1, os dados estão embutidos: qualquer pessoa com
 o endereço vê a carteira inteira no código-fonte da página, **mesmo com tela de login na
-frente**. Nesse caso, não publique sem antes proteger o acesso ao próprio arquivo
-(Vercel Pro com proteção de produção, ou outro provedor com bloqueio na porta).
+frente**. Nesse caso, não publique sem antes proteger o acesso ao próprio arquivo.
 
 ## O que fica exposto se essa checagem falhar
 
-3.579 propostas com nome do cliente, valor, **margem em R$ e em %**, responsável,
+Milhares de propostas com nome do cliente, valor, **margem em R$ e em %**, responsável,
 descrição e datas. A margem por cliente é o item mais sensível: um cliente veria quanto
-você ganha nele, e um concorrente veria sua formação de preço.
+se ganha nele, e um concorrente veria a formação de preço.
