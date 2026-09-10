@@ -59,6 +59,13 @@
   table.hh td.cp{color:var(--tinta);font-weight:600}
   table.hh tfoot td{font-weight:700;color:var(--petroleo);border-top:2px solid var(--linha);padding-top:8px}
   .miniin{width:110px}
+  table.hh select{width:100%;min-width:150px;padding:5px 6px;font:inherit;font-size:12.5px;border:1px solid var(--linha);border-radius:6px;background:#fff;color:var(--tinta)}
+  table.hh select:focus{outline:2px solid var(--ciano);outline-offset:1px}
+  .rm{appearance:none;border:0;background:none;color:var(--grafite);cursor:pointer;font-size:17px;line-height:1;padding:0 4px}
+  .rm:hover{color:var(--vermelho)}
+  .btn-add{appearance:none;border:1px dashed var(--ciano);background:var(--indigo-fraco);color:var(--petroleo);
+    font:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:8px;cursor:pointer;margin-top:10px}
+  .btn-add:hover{filter:brightness(.98)}
 
   /* DRE */
   table.dre{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -134,11 +141,12 @@
       <p class="sec-rot">Homem-hora (engenharia)</p>
       <div style="overflow-x:auto">
       <table class="hh">
-        <thead><tr><th>Cargo</th><th>R$/Hora</th><th>Horas</th><th>Custo</th></tr></thead>
+        <thead><tr><th>Pessoa</th><th>R$/Hora</th><th>Horas</th><th>Custo</th><th></th></tr></thead>
         <tbody id="hhBody"></tbody>
-        <tfoot><tr><td colspan="2">Custo Engenharia</td><td id="hhHoras">0</td><td id="hhTotal">R$ 0,00</td></tr></tfoot>
+        <tfoot><tr><td colspan="2">Custo Engenharia</td><td id="hhHoras">0</td><td id="hhTotal">R$ 0,00</td><td></td></tr></tfoot>
       </table>
       </div>
+      <button class="btn-add" id="addPessoa" type="button">+ Adicionar pessoa</button>
 
       <p class="sec-rot">Outros custos</p>
       <div class="par3">
@@ -214,14 +222,14 @@
 "use strict";
 const $ = id => document.getElementById(id);
 
-// homem-hora: R$/hora médio por cargo — planilha "Valor homem hora atualizado (1)" (set/2026)
-const CARGOS = [
-  ["Estagiário",16.1208,0],
-  ["Assistente",45.8619689063745,0],
-  ["Analista I",55.25555311996459,0],
-  ["Analista II",63.11004844621513,0],
-  ["Analista III",81.80636972111554,0],
-  ["Coordenadores",100.65875808764942,0],
+// homem-hora: R$/hora por PESSOA — planilha "Valor homem hora atualizado (1)" (set/2026)
+const EQUIPE = [
+  {g:"Estagiário",  pessoas:[["Fabricio Cichoki",15.1208],["Pedro Henrique dos Santos",17.1208]]},
+  {g:"Assistente",  pessoas:[["Luís Carlos Junior",39.01439482071713],["Mathues Dutra",48.452363],["Otávio Mancio",46.99609880478088],["Ruthyson Malaquias",48.985019]]},
+  {g:"Analista I",  pessoas:[["Érica Asakura",52.49613498007969],["Justyn Hatschbach",59.61024171314742],["Renam Colasso",53.660282666666674]]},
+  {g:"Analista II", pessoas:[["Ana Paula Perussolo",63.94044366533864],["Juliius Gruber",62.27965322709162]]},
+  {g:"Analista III",pessoas:[["José Maurício Mendonça",81.80636972111554]]},
+  {g:"Coordenadores",pessoas:[["Amanda Menin",100.46776589641436],["Matheus Souza",100.84975027888447]]},
 ];
 
 // ---- números pt-BR ----
@@ -240,21 +248,39 @@ const brl = n => (n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",
 const brl0 = n => (n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:0,maximumFractionDigits:0});
 const pct1 = n => (n*100).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";
 
-// ---- monta a tabela de homem-hora ----
-function montarHH(){
-  const tb=$("hhBody"); tb.innerHTML="";
-  CARGOS.forEach((c,i)=>{
-    const tr=document.createElement("tr");
-    tr.innerHTML =
-      "<td>"+c[0]+"</td>"+
-      '<td><input class="miniin" data-hh="r" data-i="'+i+'" inputmode="decimal"></td>'+
-      '<td><input class="miniin" data-hh="h" data-i="'+i+'" inputmode="decimal" style="width:70px"></td>'+
-      '<td class="cp" data-cp="'+i+'">—</td>';
-    tb.appendChild(tr);
-    tr.querySelector('[data-hh="r"]').value = c[1].toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
-    tr.querySelector('[data-hh="h"]').value = c[2];
+// ---- composição por pessoa ----
+function opcoesHTML(){
+  let h='<option value="">— selecione —</option>';
+  EQUIPE.forEach(grp=>{
+    h+='<optgroup label="'+grp.g+'">';
+    grp.pessoas.forEach(p=>{ h+='<option value="'+p[0]+'" data-rate="'+p[1]+'">'+p[0]+'</option>'; });
+    h+='</optgroup>';
   });
+  return h;
 }
+const OPCOES=opcoesHTML();
+
+function addRow(nome){
+  const tr=document.createElement("tr");
+  tr.innerHTML=
+    '<td><select class="pessoa-sel">'+OPCOES+'</select></td>'+
+    '<td class="rh" data-rate="0">—</td>'+
+    '<td><input class="miniin horas-in" inputmode="decimal" style="width:70px" value="0"></td>'+
+    '<td class="cp">R$ 0,00</td>'+
+    '<td><button class="rm" type="button" title="Remover">×</button></td>';
+  $("hhBody").appendChild(tr);
+  const sel=tr.querySelector(".pessoa-sel"), rh=tr.querySelector(".rh");
+  sel.addEventListener("change",()=>{
+    const opt=sel.selectedOptions[0];
+    const r=opt&&opt.dataset.rate?Math.round(parseFloat(opt.dataset.rate)*100)/100:0;
+    rh.dataset.rate=r; rh.textContent=r?brl(r):"—";
+    calc();
+  });
+  tr.querySelector(".rm").addEventListener("click",()=>{ tr.remove(); calc(); });
+  if(nome){ sel.value=nome; sel.dispatchEvent(new Event("change")); }
+}
+
+function montarHH(){ $("hhBody").innerHTML=""; addRow(); }
 
 // ---- rosca ----
 function donut(segs){
@@ -280,12 +306,11 @@ let ULT=null, modo="preco";
 // lê homem-hora + parâmetros (independentes do preço)
 function lerParams(){
   let custoEng=0, totHoras=0;
-  document.querySelectorAll('[data-hh="r"]').forEach(inp=>{
-    const i=+inp.dataset.i;
-    const rh=numBR(inp.value);
-    const h=numBR(document.querySelector('[data-hh="h"][data-i="'+i+'"]').value);
-    const cp=rh*h;
-    document.querySelector('[data-cp="'+i+'"]').textContent=brl(cp);
+  document.querySelectorAll('#hhBody tr').forEach(tr=>{
+    const rate=parseFloat(tr.querySelector('.rh').dataset.rate||"0")||0;
+    const h=numBR(tr.querySelector('.horas-in').value);
+    const cp=rate*h;
+    tr.querySelector('.cp').textContent=brl(cp);
     custoEng+=cp; totHoras+=h;
   });
   $("hhHoras").textContent=totHoras.toLocaleString("pt-BR");
@@ -379,6 +404,7 @@ const r2=n=>Math.round((n+Number.EPSILON)*100)/100;
 document.addEventListener("input",e=>{ if(e.target.matches("input")) calc(); });
 $("expCsv").addEventListener("click",exportCsv);
 $("expPdf").addEventListener("click",()=>window.print());
+$("addPessoa").addEventListener("click",()=>addRow());
 
 // alternar modo Preço<->Margem
 function aplicarModo(){
