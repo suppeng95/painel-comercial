@@ -123,22 +123,20 @@
         <button data-v="preco" class="on">Preço → Margem</button>
         <button data-v="margem">Margem → Preço</button>
       </div>
-      <div class="par3">
+      <div class="par">
         <label class="campo" id="wrapMargem" hidden><span>Margem líquida desejada (%)</span>
           <input id="margemAlvo" inputmode="decimal" value="30"></label>
         <label class="campo"><span id="lblPreco">Preço de venda (R$)</span>
           <input id="preco" inputmode="decimal" value="82.371,20"></label>
-        <label class="campo"><span>Horas produtivas / mês</span>
-          <input id="horasMes" inputmode="decimal" value="166"></label>
       </div>
       <p class="aviso-margem" id="avisoMargem" hidden></p>
 
       <p class="sec-rot">Homem-hora (engenharia)</p>
       <div style="overflow-x:auto">
       <table class="hh">
-        <thead><tr><th>Cargo</th><th>Custo Mensal</th><th>R$/Hora</th><th>Horas</th><th>Custo</th></tr></thead>
+        <thead><tr><th>Cargo</th><th>R$/Hora</th><th>Horas</th><th>Custo</th></tr></thead>
         <tbody id="hhBody"></tbody>
-        <tfoot><tr><td colspan="3">Custo Engenharia</td><td id="hhHoras">0</td><td id="hhTotal">R$ 0,00</td></tr></tfoot>
+        <tfoot><tr><td colspan="2">Custo Engenharia</td><td id="hhHoras">0</td><td id="hhTotal">R$ 0,00</td></tr></tfoot>
       </table>
       </div>
 
@@ -216,19 +214,14 @@
 "use strict";
 const $ = id => document.getElementById(id);
 
-// composição de homem-hora (Custo Mensal por função; R$/h = mensal / horas do mês)
+// homem-hora: R$/hora médio por cargo — planilha "Valor homem hora atualizado (1)" (set/2026)
 const CARGOS = [
-  ["Diretoria",24431.654,0],
-  ["Gerência",20969.618273939395,0],
-  ["Coordenador 1",11762.972696727273,0],
-  ["Coordenador 2",13347.874223030301,0],
-  ["Calculista 1",5537.890206787878,0],
-  ["Calculista 2",8239.067891151515,0],
-  ["Calculista 3",9265.831338424243,0],
-  ["Projetista 1",5537.890206787878,0],
-  ["Projetista 2",9265.831338424243,0],
-  ["Projetista 3",10445.29293939394,0],
-  ["Estagiário",2009.7709923664122,0],
+  ["Estagiário",16.1208,0],
+  ["Assistente",45.8619689063745,0],
+  ["Analista I",55.25555311996459,0],
+  ["Analista II",63.11004844621513,0],
+  ["Analista III",81.80636972111554,0],
+  ["Coordenadores",100.65875808764942,0],
 ];
 
 // ---- números pt-BR ----
@@ -254,12 +247,11 @@ function montarHH(){
     const tr=document.createElement("tr");
     tr.innerHTML =
       "<td>"+c[0]+"</td>"+
-      '<td><input class="miniin" data-hh="m" data-i="'+i+'" inputmode="decimal"></td>'+
-      '<td class="rh" data-rh="'+i+'">—</td>'+
+      '<td><input class="miniin" data-hh="r" data-i="'+i+'" inputmode="decimal"></td>'+
       '<td><input class="miniin" data-hh="h" data-i="'+i+'" inputmode="decimal" style="width:70px"></td>'+
       '<td class="cp" data-cp="'+i+'">—</td>';
     tb.appendChild(tr);
-    tr.querySelector('[data-hh="m"]').value = c[1].toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+    tr.querySelector('[data-hh="r"]').value = c[1].toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
     tr.querySelector('[data-hh="h"]').value = c[2];
   });
 }
@@ -287,14 +279,12 @@ let ULT=null, modo="preco";
 
 // lê homem-hora + parâmetros (independentes do preço)
 function lerParams(){
-  const horasMes=numBR($("horasMes").value)||166;
   let custoEng=0, totHoras=0;
-  document.querySelectorAll('[data-hh="m"]').forEach(inp=>{
+  document.querySelectorAll('[data-hh="r"]').forEach(inp=>{
     const i=+inp.dataset.i;
-    const m=numBR(inp.value);
+    const rh=numBR(inp.value);
     const h=numBR(document.querySelector('[data-hh="h"][data-i="'+i+'"]').value);
-    const rh=horasMes?m/horasMes:0, cp=rh*h;
-    document.querySelector('[data-rh="'+i+'"]').textContent=brl(rh);
+    const cp=rh*h;
     document.querySelector('[data-cp="'+i+'"]').textContent=brl(cp);
     custoEng+=cp; totHoras+=h;
   });
