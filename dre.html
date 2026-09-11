@@ -39,6 +39,10 @@
   input{width:100%;padding:8px 10px;border:1px solid var(--linha);border-radius:8px;
     font:inherit;color:var(--tinta);background:#fff;text-align:right}
   input:focus{outline:2px solid var(--ciano);outline-offset:1px;border-color:var(--ciano)}
+  textarea{width:100%;padding:8px 10px;border:1px solid var(--linha);border-radius:8px;font:inherit;
+    color:var(--tinta);background:#fff;resize:vertical;line-height:1.45}
+  textarea:focus{outline:2px solid var(--ciano);outline-offset:1px;border-color:var(--ciano)}
+  #prop-card input, #prop-card textarea{text-align:left}
   .par{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .par3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
   .seg{display:inline-flex;border:1px solid var(--linha);border-radius:999px;padding:3px;gap:2px;background:#fff}
@@ -213,6 +217,36 @@
     </div>
   </div>
 
+  <!-- PROPOSTA COMERCIAL (PDF) -->
+  <div class="card" id="prop-card" style="margin-top:18px">
+    <h2>Proposta comercial (PDF)
+      <button class="btn-exp" id="btnProposta" style="border-color:var(--petroleo);background:var(--petroleo);color:#fff;font-weight:650">Gerar proposta (PDF)</button>
+    </h2>
+    <p class="nota" style="margin:0 0 14px">O <b>Investimento</b> usa o preço da DRE (<b id="prop-preco">—</b>). Preencha os campos e gere a proposta na identidade Support (abre em nova aba → Imprimir/Salvar como PDF).</p>
+    <div class="par3">
+      <label class="campo"><span>Cliente</span><input id="prop-cliente" placeholder="Ex.: Winity"></label>
+      <label class="campo"><span>Nº da proposta</span><input id="prop-numero" placeholder="Ex.: C2609031151"></label>
+      <label class="campo"><span>Data</span><input id="prop-data" type="date"></label>
+    </div>
+    <label class="campo" style="display:block;margin-top:10px"><span>Escopo (título)</span>
+      <input id="prop-escopo" placeholder="Ex.: Projeto de Implementação de antenas em Rooftop"></label>
+    <label class="campo" style="display:block;margin-top:10px"><span>Descrição</span>
+      <textarea id="prop-descricao" rows="2">Esta proposta detalha os serviços de engenharia para o cliente, visando ao atendimento das demandas do projeto.</textarea></label>
+    <label class="campo" style="display:block;margin-top:10px"><span>Itens do escopo (uma linha por item; comece com 2 espaços para sub-item)</span>
+      <textarea id="prop-itens" rows="7">Site
+  Mobilização
+  Vistoria e levantamento de campo
+  Laudo estrutural
+  Projeto executivo
+  ART</textarea></label>
+    <div class="par3" style="margin-top:10px">
+      <label class="campo"><span>Prazo de entrega</span><input id="prop-prazo" value="15 dias após liberação de acesso."></label>
+      <label class="campo"><span>Validade</span><input id="prop-validade" value="Esta proposta é válida por 15 dias a partir da data de emissão."></label>
+      <label class="campo"><span>Condições de pagamento</span><textarea id="prop-pagamento" rows="2">Prazo de 15 dias após a emissão da Nota Fiscal.
+Forma de pagamento por transferência bancária.</textarea></label>
+    </div>
+  </div>
+
   <p class="nota">Regime Lucro Real: PIS/COFINS 9,25% sobre a receita (não-cumulativo, sem créditos nesta versão);
     IRPJ 15% + adicional 10% sobre o que exceder o limite × meses; CSLL 9% — ambos sobre o resultado antes de IR/CSLL.
     Serviço de engenharia (sem ICMS/IPI). Não substitui orientação contábil.</p>
@@ -383,6 +417,7 @@ function calc(){
   $("s-markup").textContent=(d.markup).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+"x";
   $("s-trib").textContent=brl(d.tributos);
   ULT=d;
+  const pp=document.getElementById("prop-preco"); if(pp) pp.textContent=brl(d.receita);
 }
 
 // ---- export CSV ----
@@ -405,6 +440,26 @@ document.addEventListener("input",e=>{ if(e.target.matches("input")) calc(); });
 $("expCsv").addEventListener("click",exportCsv);
 $("expPdf").addEventListener("click",()=>window.print());
 $("addPessoa").addEventListener("click",()=>addRow());
+
+// ---- gerar proposta comercial (PDF) ----
+function formatData(iso){ if(!iso) return ""; const p=iso.split("-"); return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:iso; }
+function gerarProposta(){
+  const data={
+    cliente:$("prop-cliente").value.trim(),
+    numero:$("prop-numero").value.trim(),
+    data:formatData($("prop-data").value),
+    escopo:$("prop-escopo").value.trim(),
+    descricao:$("prop-descricao").value.trim(),
+    itens:$("prop-itens").value,
+    investimento: ULT?ULT.receita:0,
+    prazo:$("prop-prazo").value.trim(),
+    validade:$("prop-validade").value.trim(),
+    pagamento:$("prop-pagamento").value
+  };
+  window.open("proposta.html#"+encodeURIComponent(JSON.stringify(data)), "_blank");
+}
+$("btnProposta").addEventListener("click",gerarProposta);
+try{ $("prop-data").value=new Date().toISOString().slice(0,10); }catch(e){}
 
 // alternar modo Preço<->Margem
 function aplicarModo(){
