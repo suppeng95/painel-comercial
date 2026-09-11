@@ -135,7 +135,7 @@
         <button data-v="margem">Margem → Preço</button>
       </div>
       <div class="par">
-        <label class="campo" id="wrapMargem" hidden><span>Margem líquida desejada (%)</span>
+        <label class="campo" id="wrapMargem" hidden><span>Margem operacional (%) — antes de IR/CSLL</span>
           <input id="margemAlvo" inputmode="decimal" value="30"></label>
         <label class="campo"><span id="lblPreco">Preço de venda (R$)</span>
           <input id="preco" inputmode="decimal" value="82.371,20"></label>
@@ -371,23 +371,13 @@ function forward(receita,p){
     margem:receita?lucro/receita:0, carga:receita?tributos/receita:0, markup:totalCustos?receita/totalCustos:0};
 }
 
-// preço que atinge a margem desejada — solução analítica por faixa do IRPJ (menor preço válido)
-function precoParaMargem(mAlvo,p){
-  const a=1-p.issR-p.pisR-p.rateioR-p.comissaoR, F=p.custoEng+p.reaj+p.fin+p.out, T=p.limite*p.meses;
-  const k1=1-p.irpjR-p.csllR;          // faixa A (lucro <= limite): sem adicional
-  const k2=1-p.irpjR-p.adicR-p.csllR;  // faixa B (lucro > limite): com adicional
-  const cands=[];
-  if(k1*a-mAlvo>1e-12){ const P=k1*F/(k1*a-mAlvo), R=a*P-F; if(R>=-1e-6 && R<=T+1e-6 && P>0) cands.push(P); }
-  { const den=k2*a-mAlvo, num=k2*F-p.adicR*T; if(Math.abs(den)>1e-12){ const P=num/den, R=a*P-F; if(R>=T-1e-6 && P>0) cands.push(P); } }
-  const ok=cands.filter(P=>Math.abs(forward(P,p).margem-mAlvo)<1e-4);
-  return ok.length ? Math.min(...ok) : null;
-}
-// maior margem líquida possível com esses custos/impostos (teto)
-function margemMax(p){
-  const a=1-p.issR-p.pisR-p.rateioR-p.comissaoR, F=p.custoEng+p.reaj+p.fin+p.out, T=p.limite*p.meses;
-  const Pk=a>0?(F+T)/a:1e6; let m=-1e9;
-  [Pk,1e4,1e5,1e6,1e7,1e8,1e9].forEach(P=>{ if(P>0){ const v=forward(P,p).margem; if(v>m) m=v; } });
-  return m;
+// preço a partir da MARGEM OPERACIONAL desejada (antes de IR/CSLL).
+// resultado = a*P - F, com a = 1 - ISS - PIS/COFINS - rateio - comissão ; F = custos fixos.
+// margem_op = resultado/P = a - F/P  ->  P = F/(a - margem_op).
+// IRPJ/CSLL NÃO entram na formação de preço (são apurados sobre o lucro e aparecem como resultado na DRE).
+function precoPorMargemOper(mAlvo,p){
+  const a=1-p.issR-p.pisR-p.rateioR-p.comissaoR, F=p.custoEng+p.reaj+p.fin+p.out;
+  return {a, F, preco:(F>0 && a-mAlvo>1e-9) ? F/(a-mAlvo) : null};
 }
 
 function calc(){
@@ -395,16 +385,19 @@ function calc(){
   let receita, aviso="", avisoWarn=false;
   if(modo==="margem"){
     const mAlvo=numBR($("margemAlvo").value)/100;
-    const maxM=margemMax(p);
-    const preco=precoParaMargem(mAlvo,p);
-    if(preco===null){
-      aviso="Margem inatingível — o máximo com esses custos/impostos é ≈ "+pct1(maxM)+".";
+    const {a,F,preco}=precoPorMargemOper(mAlvo,p);
+    if(F<=0){
+      aviso="Preencha o custo de engenharia (ou Outros custos) — sem custo não há base para formar o preço pela margem.";
+      avisoWarn=true; receita=0; $("preco").value="";
+    } else if(preco===null){
+      aviso="Margem operacional inatingível — o máximo com esses tributos/rateio é ≈ "+pct1(a)+".";
       avisoWarn=true; receita=0; $("preco").value="";
     } else {
       receita=preco;
       $("preco").value=preco.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
-      if(maxM-mAlvo<0.03){ aviso="Perto do teto (máx. ≈ "+pct1(maxM)+"): acima disso o preço dispara para pouco ganho de margem."; avisoWarn=true; }
-      else aviso="Margem máxima possível ≈ "+pct1(maxM)+".";
+      const dprev=forward(receita,p);
+      aviso="Máx. operacional ≈ "+pct1(a)+" · margem líquida (após IR/CSLL) ≈ "+pct1(dprev.margem)+".";
+      if(a-mAlvo<0.03) avisoWarn=true;
     }
   } else {
     receita=numBR($("preco").value);
